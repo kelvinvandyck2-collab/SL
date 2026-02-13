@@ -6,19 +6,24 @@ const nodemailer = require('nodemailer');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
-const session = require('express-session');
-const svgCaptcha = require('svg-captcha');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1); // Required for Vercel/Proxies to handle secure cookies
 const PORT = process.env.PORT || 3001;
 
 // Database configuration
 let connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING;
 if (connectionString) {
-  connectionString = connectionString.replace('?sslmode=require', '').replace('&sslmode=require', '');
+  try {
+    const url = new URL(connectionString);
+    url.searchParams.delete('sslmode');
+    connectionString = url.toString();
+  } catch (error) {
+    connectionString = connectionString.replace('?sslmode=require', '').replace('&sslmode=require', '');
+  }
 }
 
 const dbConfig = connectionString
@@ -80,17 +85,6 @@ const limiter = rateLimit({
   }
 });
 app.use(limiter);
-
-// Session middleware for captcha
-app.use(session({
-  secret: process.env.SECRET_KEY || 'your-secret-key',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production', // Set to true if using https
-    maxAge: 60000 * 10 // 10 minutes
-  }
-}));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -177,32 +171,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy' });
 });
 
-// Captcha route
-app.get('/api/v1/captcha', (req, res) => {
-  const captcha = svgCaptcha.create({
-    size: 5,
-    noise: 2,
-    color: true,
-    background: '#f0f0f0'
-  });
-  req.session.captcha = captcha.text;
-  res.type('svg');
-  res.status(200).send(captcha.data);
-});
-
 // Contact form submission
 app.post('/api/v1/contact', async (req, res) => {
   try {
-    const { name, email, phone, subject, message, type_the_word } = req.body;
+    const { name, email, phone, subject, message } = req.body;
 
     // Validation
     if (!name || !email || !subject || !message) {
+      console.error('❌ Contact Validation Failed: Missing fields', { body: req.body });
       return res.status(400).json({ error: 'Name, email, subject, and message are required' });
-    }
-
-    // Captcha Validation
-    if (!req.session.captcha || req.session.captcha.toLowerCase() !== type_the_word?.toLowerCase()) {
-      return res.status(400).json({ error: 'Invalid captcha code. Please try again.' });
     }
 
     // Email validation
@@ -338,14 +315,18 @@ app.use((req, res) => {
 });
 
 // Start server
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Spring Legal Consultancy Full-Stack Server running on port ${PORT}`);
-  console.log(`📊 API: http://localhost:${PORT}/api/v1/contact`);
-  console.log(`🌐 Website: http://localhost:${PORT}`);
-  console.log(`📝 Clean URLs (no .html extension)`);
-  console.log(`📧 Email: ${transporter ? 'Configured' : 'Not configured'}`);
-  console.log(`\n✅ Ready to serve both frontend and API!`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Spring Legal Consultancy Full-Stack Server running on port ${PORT}`);
+    console.log(`📊 API: http://localhost:${PORT}/api/v1/contact`);
+    console.log(`🌐 Website: http://localhost:${PORT}`);
+    console.log(`📝 Clean URLs (no .html extension)`);
+    console.log(`📧 Email: ${transporter ? 'Configured' : 'Not configured'}`);
+    console.log(`\n✅ Ready to serve both frontend and API!`);
+  });
+}
+
+module.exports = app;
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
