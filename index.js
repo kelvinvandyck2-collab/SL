@@ -96,6 +96,20 @@ app.use(session({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Static file serving BEFORE routes - serve static files from root
+app.use(express.static(path.join(__dirname), {
+  maxAge: '1d',
+  etag: false,
+  setHeaders: (res, filePath) => {
+    // Cache static assets
+    if (filePath.match(/\.(js|css|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year for versioned assets
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour for HTML
+    }
+  }
+}));
+
 // Email configuration (using nodemailer v8+)
 let transporter;
 try {
@@ -229,21 +243,6 @@ app.post('/api/v1/contact', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-// Static file serving with clean URLs
-// Serve static files from root with proper caching headers
-app.use(express.static(path.join(__dirname), {
-  maxAge: '1h',
-  etag: false,
-  setHeaders: (res, filePath) => {
-    // Cache static assets
-    if (filePath.match(/\.(js|css|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year for versioned assets
-    } else {
-      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour for HTML
-    }
-  }
-}));
 
 // Clean URL routes (without .html extension)
 app.get('/', (req, res) => {
