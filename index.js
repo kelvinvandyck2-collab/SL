@@ -97,6 +97,15 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Static file serving BEFORE routes - serve static files from root
+// Explicitly serve each directory
+app.use('/img', express.static(path.join(__dirname, 'img')));
+app.use('/css', express.static(path.join(__dirname, 'css')));
+app.use('/js', express.static(path.join(__dirname, 'js')));
+app.use('/fonts', express.static(path.join(__dirname, 'fonts')));
+app.use('/quform', express.static(path.join(__dirname, 'quform')));
+app.use('/search', express.static(path.join(__dirname, 'search')));
+
+// General static file serving
 app.use(express.static(path.join(__dirname), {
   maxAge: '1d',
   etag: false,
