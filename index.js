@@ -52,7 +52,12 @@ pool.query(`
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `).then(() => console.log('Database initialized'))
-  .catch(err => console.error('Database initialization error:', err));
+  .catch(err => {
+    console.error('Database initialization error:', err);
+    if (err.message && err.message.includes('allow_list')) {
+      console.error('🚨 ACTION REQUIRED: Your database is blocking Vercel IPs. Go to your Database Dashboard and allow 0.0.0.0/0.');
+    }
+  });
 
 // Security middleware
 app.use(helmet({
@@ -226,7 +231,16 @@ app.post('/api/v1/contact', async (req, res) => {
 
   } catch (error) {
     console.error('Contact form error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // Check for firewall/network restriction errors
+    if (error.message && error.message.includes('allow_list')) {
+      return res.status(500).json({ 
+        error: 'Database Firewall Error', 
+        details: 'Your database provider blocked the connection. Please go to your Database Dashboard > Network Restrictions and allow access from 0.0.0.0/0 (Anywhere).' 
+      });
+    }
+
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
