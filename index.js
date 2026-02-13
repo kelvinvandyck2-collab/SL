@@ -231,10 +231,17 @@ app.post('/api/v1/contact', async (req, res) => {
 });
 
 // Static file serving with clean URLs
-app.use(express.static('.', {
+// Serve static files from root with proper caching headers
+app.use(express.static(path.join(__dirname), {
+  maxAge: '1h',
+  etag: false,
   setHeaders: (res, filePath) => {
-    // Prevent caching during development
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    // Cache static assets
+    if (filePath.match(/\.(js|css|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year for versioned assets
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour for HTML
+    }
   }
 }));
 
