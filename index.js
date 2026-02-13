@@ -16,8 +16,16 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Database configuration
-const dbConfig = process.env.DATABASE_URL
-  ? { connectionString: process.env.DATABASE_URL }
+let connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING;
+if (connectionString) {
+  connectionString = connectionString.replace('?sslmode=require', '').replace('&sslmode=require', '');
+}
+
+const dbConfig = connectionString
+  ? { 
+      connectionString: connectionString,
+      ssl: { rejectUnauthorized: false }
+    }
   : {
       user: process.env.DB_USER || 'postgres',
       host: process.env.DB_HOST || 'localhost',
