@@ -1,10 +1,15 @@
 {
   "version": 2,
-  "cleanUrls": true,
   "builds": [
     {
-      "src": "backend/server.js",
+      "src": "index.js",
       "use": "@vercel/node"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.js"
     }
   ]
 }
